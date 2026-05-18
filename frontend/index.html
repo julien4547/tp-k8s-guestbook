@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Livre d'or</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; }
+    h1 { color: #333; }
+    input, button { padding: 10px; margin: 5px; }
+    button { background: #007bff; color: white; border: none; cursor: pointer; }
+    #messages { margin-top: 20px; }
+    .message { padding: 10px; border-left: 3px solid #007bff; margin: 5px 0; }
+  </style>
+</head>
+<body>
+  <h1>📖 Livre d'or Kubernetes</h1>
+  <input type="text" id="msg" placeholder="Votre message..." style="width:400px">
+  <button onclick="send()">Envoyer</button>
+  <div id="messages"></div>
+  <script>
+    const API = '/api';
+    async function load() {
+      const r = await fetch(API + '/messages');
+      const d = await r.json();
+      document.getElementById('messages').innerHTML =
+        d.messages.map(m => '<div class="message">' + m + '</div>').join('');
+    }
+    async function send() {
+      const text = document.getElementById('msg').value;
+      await fetch(API + '/messages', {
+        method: 'POST',
+        body: JSON.stringify({text}),
+        headers: {'Content-Type': 'application/json'}
+      });
+      document.getElementById('msg').value = '';
+      load();
+    }
+    load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: load-test
+  namespace: guestbook
+spec:
+  template:
+    spec:
+      containers:
+      - name: load
+        image: busybox
+        command:
+        - sh
+        - -c
+        - |
+          for i in $(seq 1 2000); do
+            wget -qO- http://backend-svc:5000/api/messages > /dev/null 2>&1
+          done
+      restartPolicy: Never
+  backoffLimit: 0

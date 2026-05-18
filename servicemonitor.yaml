@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: webapp-backend
+  namespace: monitoring
+  labels:
+    release: kps
+spec:
+  namespaceSelector:
+    matchNames:
+    - guestbook
+  selector:
+    matchLabels:
+      app: webapp
+      tier: back
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 15s

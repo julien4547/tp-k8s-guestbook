@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: webapp
+    tier: back
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels: { app: webapp, tier: back }
+  template:
+    metadata:
+      labels: { app: webapp, tier: back }
+    spec:
+      initContainers:
+      - name: migration
+        image: postgres:16-alpine
+        command:
+        - sh
+        - -c
+        - |
+          until pg_isready -h postgres-0.postgres-svc -p 5432; do
+            echo "Postgres pas encore pret, retry dans 2s..."
+            sleep 2
+          done
+          echo "==> [migration] Postgres pret."
+          psql postgresql://$(DB_USER):$(DB_PASS)@postgres-0.postgres-svc:5432/$(DB_NAME) -c "
+            CREATE TABLE IF NOT EXISTS messages (
+              id SERIAL PRIMARY KEY,
+              text TEXT NOT NULL,
+              created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+          "
+          echo "==> [migration] Migration terminee !"
+        env:
+        - name: DB_USER
+          valueFrom: { secretKeyRef: { name: postgres-credentials, key: POSTGRES_USER } }
+        - name: DB_PASS
+          valueFrom: { secretKeyRef: { name: postgres-credentials, key: POSTGRES_PASSWORD } }
+        - name: DB_NAME
+          valueFrom: { secretKeyRef: { name: postgres-credentials, key: POSTGRES_DB } }
+      containers:
+      - name: backend
+        image: {{ include "webapp.backendImage" . }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: 5000
+        envFrom:
+        - configMapRef: { name: webapp-config }
+        env:
+        {{- if .Values.postgres.enabled }}
+        - name: DB_USER
+          valueFrom: { secretKeyRef: { name: postgres-credentials, key: POSTGRES_USER } }
+        - name: DB_PASS
+          valueFrom: { secretKeyRef: { name: postgres-credentials, key: POSTGRES_PASSWORD } }
+        - name: DB_NAME
+          valueFrom: { secretKeyRef: { name: postgres-credentials, key: POSTGRES_DB } }
+        - name: DATABASE_URL
+          value: "postgresql://$(DB_USER):$(DB_PASS)@postgres-0.postgres-svc:5432/$(DB_NAME)"
+        {{- end }}
+        readinessProbe:
+          httpGet: { path: /api/health, port: 5000 }
+          initialDelaySeconds: 5
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi

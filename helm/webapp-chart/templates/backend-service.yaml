@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: webapp
+    tier: back
+spec:
+  selector: { app: webapp, tier: back }
+  ports:
+  - name: http
+    port: 5000
+    targetPort: 5000
